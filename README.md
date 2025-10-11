@@ -2,103 +2,49 @@
 
 # Hands-on SIMD Programming with C++
 
-> An example-driven guide to SIMD programming techniques.
-
-## Overview
-
-This repository demonstrates practical SIMD (Single Instruction, Multiple Data) programming in C++ through progressive examples. It focuses on performance-critical techniques that leverage parallel data processing capabilities of modern CPUs.
+From “what is SIMD?” to “how do I speed up real workloads?”, this repository walks through reproducible microbenchmarks, AVX2 intrinsics, and even a transformer-style attention block.
 
 ![Intel ISA Families and Features](./assets/intel_isa_families.jpeg)
-**Image Credits: Longhorn**
 
-| Feature | Description |
-|---------|-------------|
-| **Target Audience** | Beginner to intermediate C++ programmers |
-| **Instruction Sets** | SSE, AVX, AVX2, AVX-512 |
-| **Performance Gains** | Up to 23x speedup in example benchmarks |
+![SIMD Speedups](artifacts/benchmark_speedups.png)
 
-## Repository Structure
-
-```
-├── 01_Basics/               # Fundamental SIMD concepts
-│   ├── 01_importing_simd/   # Headers and instruction sets
-│   ├── 02_initializing_data/# Working with SIMD data types
-│   ├── 03_binding_with_unions/ # Data access techniques
-│   └── 04_loading_data/     # Load/store operations
-├── 02_Computations/         # Mathematical operations
-│   ├── 01_simple_maths/     # Basic arithmetic operations
-│   └── 02_dot_product/      # Vector dot products
-├── 03_Examples/             # Real-world applications
-│   ├── 01_conditional_code/ # Branching with SIMD masks
-│   ├── 02_quadratic_equations/ # Parallel equation solving
-│   ├── 03_data_types/       # Type conversions and operations
-│   └── 04_image_processing/ # Image manipulation algorithms
-└── include/                 # Utility headers
-    └── simd_utils.h         # Common helper functions
-```
-
-## Key Features
-
-- **Comprehensive Coverage**: From basic concepts to advanced techniques
-- **Performance Benchmarks**: Each example includes scalar vs. SIMD comparisons
-- **Practical Applications**: Real-world examples demonstrating SIMD benefits
-- **Progressive Learning**: Step-by-step approach with increasing complexity
+![Attention Breakdown](artifacts/attention_speedups.png)
 
 ## Quick Start
 
-### Prerequisites
-- Modern C++ compiler with AVX2 support (GCC 4.9+, Clang 3.6+, MSVC 2015+)
-- Basic C++ knowledge
-
-### Build & Run
-
 ```bash
-# Clone repository
-git clone https://github.com/yuninxia/hands-on-simd-programming.git
-cd hands-on-simd-programming
-
-# Build and run an example
-cd 01_Basics/01_importing_simd
-make
-./simd_program
-
-# View assembly output
-make asm
-cat main.s
+./runme.sh
+# optional: rerun the plotting script manually if you tweak the CSVs
+python scripts/plot_results.py
 ```
 
-## Core SIMD Techniques Covered
+`runme.sh` already refreshes both plots automatically; the explicit commands above are only needed if you want to regenerate from modified data. All generated CSV/PNG artifacts live under [`artifacts/`](artifacts) so the project root stays tidy.
 
-### Data Types & Initialization
-- `__m256`, `__m256d`, `__m256i` vectors
-- Zero, broadcast, and element-wise initialization
-- Memory alignment considerations
+## What’s Inside?
 
-### Mathematical Operations
-- Vector arithmetic: `_mm256_add_ps()`, `_mm256_mul_ps()`, etc.
-- Horizontal operations: `_mm256_hadd_ps()`
-- Fused multiply-add: `_mm256_fmadd_ps()`
+| Module | Highlights | Use Cases / Benchmarks |
+| --- | --- | --- |
+| **01_Basics** | Loads, alignment, data initialisation, intrinsics setup | `01_importing_simd`, `04_loading_data` |
+| **02_Computations** | Vector arithmetic, FMA, structure-of-arrays vs. array-of-structures dot product | `01_simple_maths`, `02_dot_product` |
+| **03_Examples** | Masked control flow, quadratic solver, image operators, transformer attention block | `01_conditional_code`, `04_image_processing`, `05_mha_block` |
 
-### Advanced Techniques
-- Conditional processing with masks
-- Type conversions between SIMD registers
-- Non-temporal memory operations
-- Parallel algorithm implementation
+- Every example ships with scalar **vs.** SIMD implementations and an embedded benchmark so you can quantify the payoff.
+- `03_Examples/05_mha_block` packages RMSNorm + multi-head attention (MHA) + feed-forward into a single transformer block and emits a stage-by-stage CSV for deeper analysis.
 
-## Performance Highlights
+## How to Read the Figures
 
-| Example | Scalar | SIMD | Speedup |
-|---------|--------|------|---------|
-| Image Brightness | 1,225,747 μs | 52,418 μs | 23.38x |
-| Square Root | 36,612 μs | 2,179 μs | 16.80x |
-| Vector Addition | 17,010 μs | 2,786 μs | 6.11x |
-| Quadratic Equations | 67,972 μs | 27,667 μs | 2.46x |
+1. **SIMD Speedups** – the six canonical scenarios highlighted in this tutorial. You can immediately see alignment effects, arithmetic speedups, AoS→SoA wins, mask-driven branching, batched equation solving, and image processing kernels ranging from 1.3× to 40× acceleration.
+2. **Attention Breakdown** – reserved for the transformer block:
+   - Left: per-component speedups (RMSNorm, QKV projections, FFN, etc.).
+   - Centre: end-to-end latency comparison (≈2.8× faster with SIMD).
+   - Right: each component’s contribution to the overall time saved.
 
-## Resources
+## Key Takeaways
 
-- [Intel Intrinsics Guide](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html) - Official reference for SIMD intrinsics
-- [Agner Fog's Optimization Manuals](https://www.agner.org/optimize/) - Detailed processor optimization guides
-- [SIMD at Insomniac Games](https://deplinenoise.files.wordpress.com/2015/03/gdc2015_afredriksson_simd.pdf) - Game industry SIMD techniques
+- **Memory layout strategy** – transpose and SoA conversions keep SIMD loads contiguous.
+- **Intrinsic choices** – `_mm256_fmadd_ps`, `_mm256_max_ps`, `_mm256_maskload_ps`, and friends are demonstrated in real contexts.
+- **Accuracy checks** – SIMD outputs are always compared to scalar references (typical max error ≈ 2e-5 in the attention block).
+- **Automation** – `runme.sh` rebuilds every sample, records `benchmark_results.csv`, and the plotting scripts turn that data into publication-ready figures.
 
 ## License
 
