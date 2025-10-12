@@ -101,5 +101,7 @@ python3 "${ROOT_DIR}/scripts/plot_results.py" \
     --benchmarks-csv "${SIMD_BENCHMARK_CSV}" \
     --benchmarks-output "${ARTIFACT_DIR}/benchmark_speedups.png" \
     --attention-csv "${ARTIFACT_DIR}/attention_components.csv" \
-    --attention-output "${ARTIFACT_DIR}/attention_speedups.png"
+    --attention-output "${ARTIFACT_DIR}/attention_speedups.png" \
+    --tiny-gpt-csv "${ARTIFACT_DIR}/tiny_gpt_components.csv" \
+    --tiny-gpt-output "${ARTIFACT_DIR}/tiny_gpt_speedups.png"
 echo "Plots saved to ${ARTIFACT_DIR}"

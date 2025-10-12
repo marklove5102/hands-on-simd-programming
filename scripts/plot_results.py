@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Plot SIMD benchmark summaries and attention breakdown figures."""
+"""Plot SIMD benchmark summaries, attention breakdown, and tiny GPT breakdown figures."""
 
 import argparse
 import csv
@@ -43,19 +43,25 @@ def _parse_float(value: str, *, context: str) -> float:
 def plot_benchmarks(csv_path: Path, output_path: Path, dpi: int) -> None:
     rows = _read_rows(csv_path, required=("suite", "label", "speedup"))
 
+    skip_suites = {
+        "src/03_Examples/05_attention_block",
+        "03_Examples/05_attention_block",
+        "src/03_Examples/05_mha_block",
+        "03_Examples/05_mha_block",
+        "src/03_Examples/06_tiny_gpt",
+        "03_Examples/06_tiny_gpt",
+    }
+
     grouped: Dict[str, List[Tuple[str, float]]] = {}
     for row in rows:
         suite = row["suite"]
-        if suite in {
-            "src/03_Examples/05_attention_block",
-            "03_Examples/05_attention_block",
-            "src/03_Examples/05_mha_block",
-            "03_Examples/05_mha_block",
-        }:
-            # attention gets its own figure
+        if suite in skip_suites:
             continue
         grouped.setdefault(suite, []).append(
-            (row["label"], _parse_float(row["speedup"], context=f"suite={suite}, label={row['label']}") )
+            (
+                row["label"],
+                _parse_float(row["speedup"], context=f"suite={suite}, label={row['label']}")
+            )
         )
 
     if not grouped:
@@ -163,6 +169,93 @@ def plot_attention(csv_path: Path, output_path: Path, dpi: int) -> None:
     plt.close(fig)
 
 
+# --- Tiny GPT breakdown ----------------------------------------------------
+
+def plot_tiny_gpt(csv_path: Path, output_path: Path, dpi: int) -> None:
+    rows = _read_rows(
+        csv_path,
+        required=(
+            "stage",
+            "count",
+            "scalar_total_us",
+            "simd_total_us",
+            "speedup",
+            "time_saved_us",
+            "contribution_pct",
+        ),
+    )
+
+    overall = next((row for row in rows if row["stage"] == "overall"), None)
+    if not overall:
+        raise ValueError("tiny_gpt_components.csv must contain an 'overall' row")
+
+    components = [row for row in rows if row["stage"] != "overall"]
+    if not components:
+        raise ValueError("tiny_gpt_components.csv has no component rows")
+
+    names = [row["stage"] for row in components]
+    counts = [int(_parse_float(row["count"], context=row["stage"])) for row in components]
+    display_names = [f"{name} (×{count})" if count > 1 else name for name, count in zip(names, counts)]
+    scalar_vals = [_parse_float(row["scalar_total_us"], context=row["stage"]) for row in components]
+    simd_vals = [_parse_float(row["simd_total_us"], context=row["stage"]) for row in components]
+    speedups = [_parse_float(row["speedup"], context=row["stage"]) for row in components]
+    saved = [_parse_float(row["time_saved_us"], context=row["stage"]) for row in components]
+    contributions = [_parse_float(row["contribution_pct"], context=row["stage"]) for row in components]
+
+    overall_speedup = _parse_float(overall["speedup"], context="overall speedup")
+    overall_scalar = _parse_float(overall["scalar_total_us"], context="overall scalar_total_us")
+    overall_simd = _parse_float(overall["simd_total_us"], context="overall simd_total_us")
+    overall_count = int(_parse_float(overall["count"], context="overall count"))
+
+    fig, axes = plt.subplots(2, 2, figsize=(14, 9))
+    fig.suptitle(f"Tiny GPT Decoder Block Breakdown (overall {overall_speedup:.2f}×)", fontsize=14)
+
+    x_pos = list(range(len(names)))
+
+    ax_speed = axes[0, 0]
+    ax_speed.bar(x_pos, speedups, color=["#d62728" if sp < 1.0 else "#1f77b4" for sp in speedups])
+    ax_speed.set_ylabel("Speedup (scalar / SIMD)")
+    ax_speed.set_title("Component Speedups")
+    ax_speed.set_xticks(x_pos)
+    ax_speed.set_xticklabels(display_names, rotation=45, ha="right", fontsize=8)
+    for idx, val in enumerate(speedups):
+        ax_speed.text(x_pos[idx], val + 0.05, f"{val:.2f}×", ha="center", va="bottom", fontsize=7)
+
+    ax_latency = axes[0, 1]
+    width = 0.38
+    ax_latency.bar([x - width / 2 for x in x_pos], scalar_vals, width=width, label="Scalar", color="#d62728")
+    ax_latency.bar([x + width / 2 for x in x_pos], simd_vals, width=width, label="SIMD", color="#2ca02c")
+    ax_latency.set_title("Latency by Stage")
+    ax_latency.set_ylabel("Microseconds")
+    ax_latency.set_xticks(x_pos)
+    ax_latency.set_xticklabels(display_names, rotation=45, ha="right", fontsize=8)
+    ax_latency.legend(fontsize=8)
+
+    ax_saved = axes[1, 0]
+    ax_saved.bar(x_pos, saved, color="#ff7f0e")
+    ax_saved.set_ylabel("Time Saved (μs)")
+    ax_saved.set_title("Absolute Time Saved")
+    ax_saved.set_xticks(x_pos)
+    ax_saved.set_xticklabels(display_names, rotation=45, ha="right", fontsize=8)
+
+    ax_contrib = axes[1, 1]
+    ax_contrib.barh(display_names, contributions, color="#9467bd")
+    ax_contrib.set_xlabel("% of Total Speedup")
+    ax_contrib.set_title("Contribution Share")
+    for y, val in enumerate(contributions):
+        ax_contrib.text(val + 0.5, y, f"{val:.1f}%", va="center", fontsize=8)
+    ax_contrib.set_xlim(0, max(contributions + [10]) * 1.2)
+
+    fig.text(0.02, 0.02, f"Overall scalar: {overall_scalar:.1f} μs\nOverall SIMD: {overall_simd:.1f} μs\nDecoder blocks: {overall_count}", fontsize=9)
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.tight_layout(rect=[0, 0.05, 1, 0.95])
+    fig.savefig(output_path, dpi=dpi)
+    plt.close(fig)
+
+
+
+
 # --- CLI -------------------------------------------------------------------
 
 def parse_args() -> argparse.Namespace:
@@ -191,11 +284,28 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_ARTIFACT_DIR / "attention_speedups.png",
         help="Output path for the attention breakdown plot.",
     )
+    parser.add_argument(
+        "--tiny-gpt-csv",
+        type=Path,
+        default=DEFAULT_ARTIFACT_DIR / "tiny_gpt_components.csv",
+        help="Path to tiny GPT component CSV.",
+    )
+    parser.add_argument(
+        "--tiny-gpt-output",
+        type=Path,
+        default=DEFAULT_ARTIFACT_DIR / "tiny_gpt_speedups.png",
+        help="Output path for the tiny GPT breakdown plot.",
+    )
     parser.add_argument("--dpi", type=int, default=180, help="Figure DPI")
     parser.add_argument(
         "--skip-attention",
         action="store_true",
         help="Skip plotting the attention breakdown (benchmark overview still generated).",
+    )
+    parser.add_argument(
+        "--skip-tiny-gpt",
+        action="store_true",
+        help="Skip plotting the tiny GPT breakdown.",
     )
     return parser.parse_args()
 
@@ -205,6 +315,8 @@ def main() -> None:
     plot_benchmarks(args.benchmarks_csv, args.benchmarks_output, args.dpi)
     if not args.skip_attention:
         plot_attention(args.attention_csv, args.attention_output, args.dpi)
+    if not args.skip_tiny_gpt:
+        plot_tiny_gpt(args.tiny_gpt_csv, args.tiny_gpt_output, args.dpi)
 
 
 if __name__ == "__main__":  # pragma: no cover

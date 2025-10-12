@@ -1,21 +1,22 @@
 suite,label,iterations,scalar_us,simd_us,speedup
-"01_Basics/04_loading_data","Load Operations",10,4513,5408,0.834504
-"01_Basics/04_loading_data","Store Operations",10,6307,7255,0.869331
-"02_Computations/01_simple_maths","Addition",1000,64,10,6.4
+"01_Basics/04_loading_data","Load Operations",10,4504,5414,0.831917
+"01_Basics/04_loading_data","Store Operations",10,6309,7212,0.874792
+"02_Computations/01_simple_maths","Addition",1000,64,18,3.55556
 "02_Computations/01_simple_maths","Subtraction",1000,64,10,6.4
 "02_Computations/01_simple_maths","Multiplication",1000,64,10,6.4
 "02_Computations/01_simple_maths","Division",1000,64,10,6.4
-"02_Computations/01_simple_maths","Fused Multiply-Add",1000,69,14,4.92857
+"02_Computations/01_simple_maths","Fused Multiply-Add",1000,64,14,4.57143
 "02_Computations/01_simple_maths","Square Root",1000,127,9,14.1111
-"02_Computations/01_simple_maths","Minimum",1000,132,10,13.2
-"02_Computations/02_dot_product","Dot Product (1024 vectors)",50,1755,513,3.42105
-"02_Computations/02_dot_product","AoS vs SoA",50,12849,513,25.0468
-"02_Computations/02_dot_product","Single Dot Product (1000 iterations)",10,134,402,0.333333
+"02_Computations/01_simple_maths","Minimum",1000,123,10,12.3
+"02_Computations/02_dot_product","Dot Product (1024 vectors)",50,1757,514,3.41829
+"02_Computations/02_dot_product","AoS vs SoA",50,12837,513,25.0234
+"02_Computations/02_dot_product","Single Dot Product (1000 iterations)",10,134,400,0.335
 "03_Examples/01_conditional_code","Clamping",200,39,4,9.75
-"03_Examples/01_conditional_code","Filtering",200,17,3,5.66667
-"03_Examples/01_conditional_code","Complex Filtering",200,21,5,4.2
+"03_Examples/01_conditional_code","Filtering",200,18,3,6
+"03_Examples/01_conditional_code","Complex Filtering",200,22,5,4.4
 "03_Examples/02_quadratic_equations","Quadratic Equation Solver",50,12,3,4
-"03_Examples/04_image_processing","Brightness Adjustment",10,127995,3218,39.7747
-"03_Examples/04_image_processing","Contrast Enhancement",10,157557,41427,3.80324
-"03_Examples/04_image_processing","Grayscale Conversion",10,42593,31174,1.3663
-"03_Examples/05_mha_block","attention_block",50,107378,37836,2.83798
+"03_Examples/04_image_processing","Brightness Adjustment",10,129963,3211,40.4743
+"03_Examples/04_image_processing","Contrast Enhancement",10,159323,41794,3.8121
+"03_Examples/04_image_processing","Grayscale Conversion",10,43116,31358,1.37496
+"03_Examples/05_mha_block","attention_block",50,107658,37903,2.84036
+"03_Examples/06_tiny_gpt","tiny_gpt_decode",50,6441320,3174565,2.02904

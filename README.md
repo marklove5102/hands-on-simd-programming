@@ -2,49 +2,46 @@
 
 # Hands-on SIMD Programming with C++
 
-From “what is SIMD?” to “how do I speed up real workloads?”, this repository walks through reproducible microbenchmarks, AVX2 intrinsics, and even a transformer-style attention block.
+From “what is SIMD?” to “how do I speed up transformer layers?”—this repository walks through reproducible AVX2 microbenchmarks, tuning tricks, and a quantised decoder block.
 
 ![Intel ISA Families and Features](./assets/intel_isa_families.jpeg)
-
 ![SIMD Speedups](artifacts/benchmark_speedups.png)
-
 ![Attention Breakdown](artifacts/attention_speedups.png)
+![Tiny GPT Breakdown](artifacts/tiny_gpt_speedups.png)
 
 ## Quick Start
 
 ```bash
 ./runme.sh
-# optional: rerun the plotting script manually if you tweak the CSVs
+# optional: tweak CSVs then regenerate the figures
 python scripts/plot_results.py
 ```
 
-`runme.sh` already refreshes both plots automatically; the explicit commands above are only needed if you want to regenerate from modified data. All generated CSV/PNG artifacts live under [`artifacts/`](artifacts) so the project root stays tidy.
+`runme.sh` rebuilds every sample, refreshes `artifacts/*.csv`, and redraws all figures (kept under [`artifacts/`](artifacts) so the root stays clean).
 
-## What’s Inside?
+## Highlights by Module
 
 | Module | Highlights | Use Cases / Benchmarks |
 | --- | --- | --- |
 | **01_Basics** | Loads, alignment, data initialisation, intrinsics setup | `01_importing_simd`, `04_loading_data` |
-| **02_Computations** | Vector arithmetic, FMA, structure-of-arrays vs. array-of-structures dot product | `01_simple_maths`, `02_dot_product` |
-| **03_Examples** | Masked control flow, quadratic solver, image operators, transformer attention block | `01_conditional_code`, `04_image_processing`, `05_mha_block` |
+| **02_Computations** | Vector arithmetic, FMA, AoS→SoA dot products | `01_simple_maths`, `02_dot_product` |
+| **03_Examples** | Conditional masks, quadratic solver, image ops, quantised attention, 61-block decoder | `01_conditional_code`, `04_image_processing`, `05_mha_block`, `06_tiny_gpt` |
 
-- Every example ships with scalar **vs.** SIMD implementations and an embedded benchmark so you can quantify the payoff.
-- `03_Examples/05_mha_block` packages RMSNorm + multi-head attention (MHA) + feed-forward into a single transformer block and emits a stage-by-stage CSV for deeper analysis.
+Every example ships with scalar **vs.** SIMD implementations and an embedded benchmark so you can quantify the payoff.
 
-## How to Read the Figures
+## Reading the Figures
 
-1. **SIMD Speedups** – the six canonical scenarios highlighted in this tutorial. You can immediately see alignment effects, arithmetic speedups, AoS→SoA wins, mask-driven branching, batched equation solving, and image processing kernels ranging from 1.3× to 40× acceleration.
-2. **Attention Breakdown** – reserved for the transformer block:
-   - Left: per-component speedups (RMSNorm, QKV projections, FFN, etc.).
-   - Centre: end-to-end latency comparison (≈2.8× faster with SIMD).
-   - Right: each component’s contribution to the overall time saved.
+1. **SIMD Speedups** – six canonical kernels showing alignment, arithmetic, SoA wins, mask-driven control flow, equation solving, and image transforms (speedups from 0.8× to 40×).
+2. **Attention Breakdown** – RMSNorm + MHA + FFN block with component speedups, end-to-end latency, and contribution share (≈2.8× faster overall).
+3. **Tiny GPT Breakdown** – 61-block decoder with int8 weight stores and SIMD dequantisation; the 2× end-to-end gain is unpacked by stage, absolute savings, and contribution percentages.
 
 ## Key Takeaways
 
-- **Memory layout strategy** – transpose and SoA conversions keep SIMD loads contiguous.
-- **Intrinsic choices** – `_mm256_fmadd_ps`, `_mm256_max_ps`, `_mm256_maskload_ps`, and friends are demonstrated in real contexts.
-- **Accuracy checks** – SIMD outputs are always compared to scalar references (typical max error ≈ 2e-5 in the attention block).
-- **Automation** – `runme.sh` rebuilds every sample, records `benchmark_results.csv`, and the plotting scripts turn that data into publication-ready figures.
+- Memory layout matters: we transpose matrices and lean on SoA buffers so AVX2 loads stay contiguous.
+- Quantised linear layers use per-channel scales plus `_mm256_cvtepi16_epi32` / `_mm256_fmadd_ps` to recover float outputs without leaving vector code.
+- Accuracy is always checked—SIMD activations are compared against scalar references, and quantised logits agree on the predicted token.
+- Automation keeps results fresh: rerunning `runme.sh` recompiles, re-benchmarks, and redraws the conference-style plots.
+- The tiny GPT demo stacks 61 decoder blocks, so the CSV/plot counts capture how repeated kernels dominate end-to-end latency.
 
 ## License
 
